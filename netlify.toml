@@ -6,6 +6,11 @@
 [build.environment]
   NODE_VERSION = "22"
   NEXT_TELEMETRY_DISABLED = "1"
+  # Secrets scanning: webpack build caches contain inlined env values but are
+  # never published; NEXT_PUBLIC_* values are public by design (inlined into
+  # client JS by Next.js). Server-only secrets stay scanned in published output.
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/**,.next/cache/**,app/.netlify/**,app/.next/cache/**"
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,NEXT_PUBLIC_RAZORPAY_KEY_ID,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPPORT_EMAIL,NEXT_PUBLIC_SUPPORT_WHATSAPP,RAZORPAY_KEY_ID"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

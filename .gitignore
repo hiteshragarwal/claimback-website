@@ -1,0 +1,11 @@
+# env files — never commit secrets
+.env
+.env.*
+
+# build output / caches
+.netlify/
+.next/
+node_modules/
+
+# misc
+.DS_Store
