@@ -4,12 +4,17 @@ import { NextRequest, NextResponse } from 'next/server';
 // for createCase()) and redirect to sign-up. Must be a Route Handler — pages
 // cannot modify cookies during render.
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params;
 
-  const res = NextResponse.redirect(new URL(`/sign-up?ref=${encodeURIComponent(code)}`, req.url));
+  // Relative Location header: behind Netlify's proxy req.url resolves to the
+  // internal deploy hostname, which would strand the user off claimback.co.in
+  const res = new NextResponse(null, {
+    status: 307,
+    headers: { Location: `/sign-up?ref=${encodeURIComponent(code)}` },
+  });
   res.cookies.set('ref_code', code, {
     maxAge: 60 * 60 * 24 * 30,
     path: '/',
