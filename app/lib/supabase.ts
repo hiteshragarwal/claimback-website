@@ -1,14 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-const URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const SVC  = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-// Browser client (anon key — RLS enforced)
-export const supabase = createClient(URL, ANON);
+// Lazy getters — evaluated at call time (not module load), so Next.js static
+// analysis during build doesn't crash when env vars are absent.
+export const supabase = () =>
+  createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
 
 // Server-only client (service role — bypasses RLS, only used in API routes)
-export const supabaseAdmin = () => createClient(URL, SVC);
+export const supabaseAdmin = () =>
+  createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
 
 // ── IDENTITY ─────────────────────────────────────────────────────────────────
 // Same deterministic UUID-v5 logic as the mobile app.
@@ -27,7 +32,7 @@ export type DocumentType =
 
 // ── CASES ────────────────────────────────────────────────────────────────────
 export async function createCase(userId: string, partnerCode?: string) {
-  const { data, error } = await supabase.from('cases').insert({
+  const { data, error } = await supabase().from('cases').insert({
     user_id: userId,
     status: 'draft',
     payment_status: 'unpaid',
@@ -38,18 +43,18 @@ export async function createCase(userId: string, partnerCode?: string) {
 }
 
 export async function updateCase(caseId: string, updates: Record<string, unknown>) {
-  const { error } = await supabase.from('cases').update(updates).eq('id', caseId);
+  const { error } = await supabase().from('cases').update(updates).eq('id', caseId);
   if (error) throw new Error(error.message);
 }
 
 export async function getCaseById(caseId: string) {
-  const { data, error } = await supabase.from('cases').select('*').eq('id', caseId).single();
+  const { data, error } = await supabase().from('cases').select('*').eq('id', caseId).single();
   if (error) throw new Error(error.message);
   return data;
 }
 
 export async function getUserCases(userId: string) {
-  const { data, error } = await supabase
+  const { data, error } = await supabase()
     .from('cases')
     .select('*')
     .eq('user_id', userId)
@@ -70,11 +75,11 @@ export async function uploadDocument(
   const ext = file.name.split('.').pop() || 'pdf';
   const storagePath = `${userId}/${caseId}/${Date.now()}_${documentType}.${ext}`;
 
-  const { error: uploadError } = await supabase.storage
+  const { error: uploadError } = await supabase().storage
     .from(bucket).upload(storagePath, file, { contentType: file.type, upsert: false });
   if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
-  const { data, error: dbError } = await supabase.from('documents').insert({
+  const { data, error: dbError } = await supabase().from('documents').insert({
     case_id: caseId, user_id: userId, document_type: documentType,
     file_name: file.name, file_size: file.size, mime_type: file.type, storage_path: storagePath,
   }).select('id').single();
@@ -83,20 +88,20 @@ export async function uploadDocument(
 }
 
 export async function getCaseDocuments(caseId: string) {
-  const { data, error } = await supabase.from('documents')
+  const { data, error } = await supabase().from('documents')
     .select('*').eq('case_id', caseId);
   if (error) throw new Error(error.message);
   return data || [];
 }
 
 export async function deleteDocument(docId: string, storagePath: string, bucket = 'claim-documents') {
-  await supabase.storage.from(bucket).remove([storagePath]);
-  await supabase.from('documents').delete().eq('id', docId);
+  await supabase().storage.from(bucket).remove([storagePath]);
+  await supabase().from('documents').delete().eq('id', docId);
 }
 
 // ── PRE-SCAN ─────────────────────────────────────────────────────────────────
 export async function triggerPreScan(caseId: string, userId: string) {
-  const { data, error } = await supabase.functions.invoke('pre-scan-docs', {
+  const { data, error } = await supabase().functions.invoke('pre-scan-docs', {
     body: { case_id: caseId, user_id: userId },
   });
   if (error) throw new Error(error.message);
@@ -104,7 +109,7 @@ export async function triggerPreScan(caseId: string, userId: string) {
 }
 
 export async function getPreScanResult(caseId: string) {
-  const { data, error } = await supabase.from('cases')
+  const { data, error } = await supabase().from('cases')
     .select('pre_scan_status, pre_scan_json').eq('id', caseId).single();
   if (error) throw new Error(error.message);
   return data;
@@ -112,7 +117,7 @@ export async function getPreScanResult(caseId: string) {
 
 // ── ANALYSIS ─────────────────────────────────────────────────────────────────
 export async function triggerAnalysis(caseId: string, userId: string) {
-  const { data, error } = await supabase.functions.invoke('analyse-claim', {
+  const { data, error } = await supabase().functions.invoke('analyse-claim', {
     body: { case_id: caseId, user_id: userId },
   });
   if (error) throw new Error(error.message);
@@ -120,7 +125,7 @@ export async function triggerAnalysis(caseId: string, userId: string) {
 }
 
 export async function pollAnalysisResult(caseId: string) {
-  const { data, error } = await supabase.from('cases')
+  const { data, error } = await supabase().from('cases')
     .select('status, analysis_json, win_score, confidence_tier').eq('id', caseId).single();
   if (error) throw new Error(error.message);
   // Normalise: expose analysis_status as status for the analysing page
@@ -133,16 +138,16 @@ export async function submitOutcome(
   outcome: string, file: File
 ) {
   const storagePath = `${userId}/${caseId}/outcome_${Date.now()}.${file.name.split('.').pop()}`;
-  const { error: upErr } = await supabase.storage
+  const { error: upErr } = await supabase().storage
     .from('outcome-documents').upload(storagePath, file, { contentType: file.type });
   if (upErr) throw new Error(upErr.message);
 
-  await supabase.from('documents').insert({
+  await supabase().from('documents').insert({
     case_id: caseId, user_id: userId, document_type: 'outcome_document',
     file_name: file.name, file_size: file.size, mime_type: file.type, storage_path: storagePath,
   });
 
-  const { error } = await supabase.from('cases').update({
+  const { error } = await supabase().from('cases').update({
     outcome_type: outcome,
     outcome_submitted_at: new Date().toISOString(),
     status: 'outcome_submitted',
@@ -152,14 +157,14 @@ export async function submitOutcome(
 
 // ── PARTNER CODES ─────────────────────────────────────────────────────────────
 export async function validatePartnerCode(code: string) {
-  const { data, error } = await supabase.from('partner_codes')
+  const { data, error } = await supabase().from('partner_codes')
     .select('id, partner_id, code, status').eq('code', code).eq('status', 'active').single();
   if (error || !data) return null;
   return data;
 }
 
 export async function getPartnerByUserId(userId: string) {
-  const { data, error } = await supabase.from('partners')
+  const { data, error } = await supabase().from('partners')
     .select('*').eq('user_id', userId).single();
   if (error) return null;
   return data;
@@ -168,18 +173,18 @@ export async function getPartnerByUserId(userId: string) {
 // These accept userId (emailToUserId result), join via partners table
 export async function getPartnerEarnings(userId: string) {
   // First get partner row
-  const { data: partner } = await supabase.from('partners').select('id').eq('user_id', userId).single();
+  const { data: partner } = await supabase().from('partners').select('id').eq('user_id', userId).single();
   if (!partner) return null;
-  const { data, error } = await supabase.from('partner_earnings')
+  const { data, error } = await supabase().from('partner_earnings')
     .select('*').eq('partner_id', partner.id).single();
   if (error) return null;
   return data;
 }
 
 export async function getPartnerReferrals(userId: string) {
-  const { data: partner } = await supabase.from('partners').select('id').eq('user_id', userId).single();
+  const { data: partner } = await supabase().from('partners').select('id').eq('user_id', userId).single();
   if (!partner) return [];
-  const { data, error } = await supabase.from('referral_events')
+  const { data, error } = await supabase().from('referral_events')
     .select('*').eq('partner_id', partner.id).order('created_at', { ascending: false });
   if (error) return [];
   return data || [];
