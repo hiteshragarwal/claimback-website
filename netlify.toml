@@ -1,0 +1,27 @@
+[build]
+  base    = "app"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Redirects: ensure claimback.co.in doesn't fall back to netlify subdomain
+[[redirects]]
+  from   = "https://claimbackai.netlify.app/*"
+  to     = "https://claimback.co.in/:splat"
+  status = 301
+  force  = true
+
+# Headers for all routes
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

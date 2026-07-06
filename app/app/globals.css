@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --navy: #06195e;
+  --blue: #0b2d91;
+  --blue3: #2563eb;
+  --blue-lt: #eff4ff;
+  --gold: #f5c842;
+  --ink: #111827;
+  --slate: #374151;
+  --muted: #9ca3af;
+  --border: #e5e7eb;
+  --surface: #f9fafb;
+  --bg: #f5f4f0;
+  --red: #dc2626;
+  --green: #16a34a;
+  --amber: #d97706;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  color: var(--ink);
+  background: #fff;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-serif { font-family: 'Libre Baskerville', serif; }
+.font-mono  { font-family: 'DM Mono', monospace; }
+
+/* Score circle animation */
+@keyframes score-fill {
+  from { stroke-dashoffset: 283; }
+  to   { stroke-dashoffset: var(--target-offset); }
+}
+.score-circle { animation: score-fill 1.2s ease-out forwards; }
+
+/* Fade up reveal */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fade-up 0.5s ease forwards; }
+
+/* Pulse for loading dots */
+@keyframes bounce-dot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+.dot-1 { animation: bounce-dot 1.2s infinite 0s; }
+.dot-2 { animation: bounce-dot 1.2s infinite 0.2s; }
+.dot-3 { animation: bounce-dot 1.2s infinite 0.4s; }
+
+/* Spinner */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { animation: spin 0.8s linear infinite; }
+
+/* Mobile nav safe area */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
