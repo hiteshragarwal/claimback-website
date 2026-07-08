@@ -18,7 +18,11 @@ function UploadPageInner() {
   const { user } = useUser();
   const router = useRouter();
   const params = useSearchParams();
-  const partnerCode = params.get('ref') || '';
+  // Referral attribution: ?ref= param wins, else the ref_code cookie set by /r/[code]
+  const cookieRef = typeof document !== 'undefined'
+    ? document.cookie.split('; ').find(c => c.startsWith('ref_code='))?.split('=')[1] || ''
+    : '';
+  const partnerCode = params.get('ref') || cookieRef;
   const caseIdRef = useRef<string | null>(null);
 
   const [step, setStep] = useState<'upload' | 'form'>('upload');
@@ -60,11 +64,10 @@ function UploadPageInner() {
     try {
       const caseId = await ensureCase();
       await updateCase(caseId, {
-        insurer_name: form.insurer,
+        insurer: form.insurer,
         claim_amount: parseFloat(form.amount.replace(/,/g, '')),
         rejection_reason: form.reason,
-        claim_date: form.claimDate || null,
-        status: 'documents_uploaded',
+        rejection_date: form.claimDate || null,
       });
       router.push(`/payment?case=${caseId}`);
     } catch (err: unknown) {

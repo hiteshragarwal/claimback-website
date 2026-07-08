@@ -26,17 +26,22 @@ function ResultsPageInner() {
       .catch(() => { toast.error('Could not load results'); router.push('/cases'); });
   }, [user, caseId, router]);
 
-  const copyLetter = () => {
+  // appeal_letter and win_score live as top-level case columns (analysis_json
+  // holds the full structured analysis) — same as the mobile app
+  const getLetter = () => {
     const analysisJson = caseData?.analysis_json as Record<string, unknown> | undefined;
-    const letter = analysisJson?.appeal_letter as string | undefined;
+    return (caseData?.appeal_letter as string) || (analysisJson?.appeal_letter as string) || '';
+  };
+
+  const copyLetter = () => {
+    const letter = getLetter();
     if (letter) {
       navigator.clipboard.writeText(letter).then(() => toast.success('Copied to clipboard'));
     }
   };
 
   const downloadLetter = () => {
-    const analysisJson = caseData?.analysis_json as Record<string, unknown> | undefined;
-    const letter = analysisJson?.appeal_letter as string | undefined;
+    const letter = getLetter();
     if (!letter) return;
     const blob = new Blob([letter], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -57,11 +62,11 @@ function ResultsPageInner() {
   );
 
   const analysis = (caseData?.analysis_json as Record<string, unknown>) || {};
-  const score = (analysis.win_score as number) ?? 0;
+  const score = (caseData?.win_score as number) ?? (analysis.win_score as number) ?? 0;
   const scoreColor = getScoreColor(score);
-  const issues: string[] = (analysis.irdai_issues as string[]) || [];
-  const appealLetter: string = (analysis.appeal_letter as string) || '';
-  const verdict: string = (analysis.verdict as string) || '';
+  const issues: string[] = (analysis.irdai_issues as string[]) || (analysis.gaps as string[]) || [];
+  const appealLetter: string = (caseData?.appeal_letter as string) || (analysis.appeal_letter as string) || '';
+  const verdict: string = (analysis.verdict as string) || (analysis.verdict_summary as string) || '';
   const outcomeLabel: string = (analysis.outcome_label as string) || (score >= 70 ? 'Strong grounds' : score >= 40 ? 'Moderate grounds' : 'Limited grounds');
 
   // SVG ring

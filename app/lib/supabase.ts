@@ -24,18 +24,54 @@ export function emailToUserId(email: string): string {
   return uuidv5(email.toLowerCase().trim(), NAMESPACE);
 }
 
+// Idempotent users upsert (mirrors iOS syncUserRecord). Never throws —
+// must not be able to block login. The row must exist before cases insert
+// (cases.user_id FK).
+export async function syncUserRecord(uid: string, email: string): Promise<boolean> {
+  try {
+    const { error } = await supabase()
+      .from('users')
+      .upsert({ id: uid, email }, { onConflict: 'id' });
+    if (error) { console.warn('[users.upsert] non-fatal:', error.message); return false; }
+    return true;
+  } catch (e) {
+    console.warn('[users.upsert] non-fatal:', e);
+    return false;
+  }
+}
+
 // ── DOCUMENT TYPES ────────────────────────────────────────────────────────────
 export type DocumentType =
   | 'policy_document' | 'rejection_letter' | 'hospital_bill'
   | 'discharge_summary' | 'tpa_correspondence' | 'investigation_report'
   | 'outcome_document' | 'additional_document';
 
+// ── CASE STAGE ────────────────────────────────────────────────────────────────
+// The DB tracks payment_status / pre_scan_status / analysis_status separately
+// (see cases table). Pages need a single funnel stage to route on.
+export type CaseStage =
+  | 'draft' | 'pending_payment' | 'pre_scan' | 'analysing' | 'completed' | 'failed';
+
+export function deriveCaseStage(c: Record<string, unknown>): CaseStage {
+  if (c.analysis_status === 'completed') return 'completed';
+  if (c.analysis_status === 'failed') return 'failed';
+  if (c.analysis_status === 'processing') return 'analysing';
+  if (c.payment_status === 'paid') {
+    if (c.pre_scan_status === 'confirmed') return 'analysing';
+    return 'pre_scan';
+  }
+  return c.claim_amount ? 'pending_payment' : 'draft';
+}
+
 // ── CASES ────────────────────────────────────────────────────────────────────
 export async function createCase(userId: string, partnerCode?: string) {
+  // Insurer defaults to 'Pending' — the analysis extracts it from documents
+  // (same as the mobile app). The upload form may overwrite it via updateCase.
   const { data, error } = await supabase().from('cases').insert({
     user_id: userId,
-    status: 'draft',
-    payment_status: 'unpaid',
+    insurer: 'Pending',
+    insurance_type: 'individual',
+    payment_status: 'pending',
     partner_code: partnerCode || null,
   }).select('id').single();
   if (error) throw new Error(error.message);
@@ -61,6 +97,26 @@ export async function getUserCases(userId: string) {
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return data || [];
+}
+
+// ── PAYMENT (beta: promo code only, no gateway) ──────────────────────────────
+// Atomic check-and-decrement via RPC — same mechanism as the mobile app.
+// Prevents two users redeeming the last use of a code simultaneously.
+export async function applyPromoCode(code: string): Promise<{ ok: boolean; reason?: string }> {
+  const { data, error } = await supabase().rpc('use_promo_code', { p_code: code.trim().toUpperCase() });
+  if (error) return { ok: false, reason: 'error' };
+  if (!data?.ok) return { ok: false, reason: data?.reason || 'not_found' };
+  return { ok: true };
+}
+
+export async function markCasePaid(caseId: string, promoCode: string) {
+  const { error } = await supabase().from('cases').update({
+    payment_status: 'paid',
+    amount_paid: 0,
+    promo_code: promoCode.trim().toUpperCase(),
+    updated_at: new Date().toISOString(),
+  }).eq('id', caseId);
+  if (error) throw new Error(error.message);
 }
 
 // ── DOCUMENTS ────────────────────────────────────────────────────────────────
@@ -100,9 +156,9 @@ export async function deleteDocument(docId: string, storagePath: string, bucket 
 }
 
 // ── PRE-SCAN ─────────────────────────────────────────────────────────────────
-export async function triggerPreScan(caseId: string, userId: string) {
+export async function triggerPreScan(caseId: string) {
   const { data, error } = await supabase().functions.invoke('pre-scan-docs', {
-    body: { case_id: caseId, user_id: userId },
+    body: { case_id: caseId },
   });
   if (error) throw new Error(error.message);
   return data;
@@ -115,10 +171,18 @@ export async function getPreScanResult(caseId: string) {
   return data;
 }
 
+export async function confirmPreScan(caseId: string) {
+  const { error } = await supabase().from('cases').update({
+    pre_scan_status: 'confirmed',
+    user_confirmed_at: new Date().toISOString(),
+  }).eq('id', caseId);
+  if (error) throw new Error(error.message);
+}
+
 // ── ANALYSIS ─────────────────────────────────────────────────────────────────
-export async function triggerAnalysis(caseId: string, userId: string) {
+export async function triggerAnalysis(caseId: string) {
   const { data, error } = await supabase().functions.invoke('analyse-claim', {
-    body: { case_id: caseId, user_id: userId },
+    body: { case_id: caseId },
   });
   if (error) throw new Error(error.message);
   return data;
@@ -126,16 +190,15 @@ export async function triggerAnalysis(caseId: string, userId: string) {
 
 export async function pollAnalysisResult(caseId: string) {
   const { data, error } = await supabase().from('cases')
-    .select('status, analysis_json, win_score, confidence_tier').eq('id', caseId).single();
+    .select('analysis_status, analysis_json, win_score, appeal_letter').eq('id', caseId).single();
   if (error) throw new Error(error.message);
-  // Normalise: expose analysis_status as status for the analysing page
-  return data ? { ...data, analysis_status: data.status } : null;
+  return data;
 }
 
 // ── OUTCOME ──────────────────────────────────────────────────────────────────
 export async function submitOutcome(
   caseId: string, userId: string,
-  outcome: string, file: File
+  outcomeStatus: string, file: File
 ) {
   const storagePath = `${userId}/${caseId}/outcome_${Date.now()}.${file.name.split('.').pop()}`;
   const { error: upErr } = await supabase().storage
@@ -148,17 +211,17 @@ export async function submitOutcome(
   });
 
   const { error } = await supabase().from('cases').update({
-    outcome_type: outcome,
-    outcome_submitted_at: new Date().toISOString(),
-    status: 'outcome_submitted',
+    outcome_status: outcomeStatus,
+    outcome_updated_at: new Date().toISOString(),
+    cashback_status: 'doc_submitted',
   }).eq('id', caseId);
   if (error) throw new Error(error.message);
 }
 
-// ── PARTNER CODES ─────────────────────────────────────────────────────────────
+// ── PARTNERS ─────────────────────────────────────────────────────────────────
 export async function validatePartnerCode(code: string) {
-  const { data, error } = await supabase().from('partner_codes')
-    .select('id, partner_id, code, status').eq('code', code).eq('status', 'active').single();
+  const { data, error } = await supabase().from('partners')
+    .select('id, partner_code, status').eq('partner_code', code).eq('status', 'active').single();
   if (error || !data) return null;
   return data;
 }
@@ -170,9 +233,7 @@ export async function getPartnerByUserId(userId: string) {
   return data;
 }
 
-// These accept userId (emailToUserId result), join via partners table
 export async function getPartnerEarnings(userId: string) {
-  // First get partner row
   const { data: partner } = await supabase().from('partners').select('id').eq('user_id', userId).single();
   if (!partner) return null;
   const { data, error } = await supabase().from('partner_earnings')

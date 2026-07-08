@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
-import { emailToUserId, triggerAnalysis, pollAnalysisResult } from '@/lib/supabase';
+import { triggerAnalysis, pollAnalysisResult } from '@/lib/supabase';
 
 const STEPS = [
   'Reading rejection letter…',
@@ -28,7 +28,6 @@ function AnalysingPageInner() {
 
   useEffect(() => {
     if (!user || !caseId) return;
-    const uid = emailToUserId(user.primaryEmailAddress!.emailAddress);
 
     // Animate steps every ~4s regardless of actual progress
     const stepTimer = setInterval(() => {
@@ -36,7 +35,7 @@ function AnalysingPageInner() {
       setProgress(p => Math.min(p + 14, 92));
     }, 4000);
 
-    triggerAnalysis(caseId, uid)
+    triggerAnalysis(caseId)
       .then(() => poll())
       .catch(err => { setStatus('error'); toast.error(err.message); clearInterval(stepTimer); });
 

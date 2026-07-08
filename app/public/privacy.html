@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — ClaimBack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --navy: #06195e; --blue3: #3d6cf5; --gold: #c8920c; }
+    body { font-family: 'DM Sans', sans-serif; color: #1a1f36; background: #fff; line-height: 1.7; }
+    nav { background: var(--navy); display: flex; align-items: center; justify-content: space-between; padding: 0 5%; height: 64px; }
+    .nav-logo { font-family: 'Libre Baskerville', serif; font-size: 1.2rem; font-weight: 700; color: #fff; text-decoration: none; }
+    .nav-logo span { color: var(--gold); }
+    nav a.back { color: rgba(255,255,255,.7); font-size: .875rem; text-decoration: none; }
+    nav a.back:hover { color: #fff; }
+    .legal-page { max-width: 760px; margin: 0 auto; padding: 56px 5% 80px; }
+    .legal-page h1 { font-family: 'Libre Baskerville', serif; font-size: 2rem; color: var(--navy); margin-bottom: 6px; }
+    .updated { color: #9ca3af; font-size: .85rem; margin-bottom: 40px; display: block; }
+    h2 { font-family: 'Libre Baskerville', serif; font-size: 1.15rem; color: var(--navy); margin: 36px 0 10px; }
+    p { font-size: .95rem; color: #444; margin-bottom: 14px; }
+    ul { padding-left: 22px; margin-bottom: 14px; }
+    li { font-size: .95rem; color: #444; margin-bottom: 6px; }
+    .highlight-box { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 18px 20px; margin: 24px 0; }
+    .highlight-box p { margin: 0; font-size: .9rem; color: #2e7d32; }
+    footer { background: var(--navy); color: rgba(255,255,255,.5); text-align: center; padding: 24px; font-size: .8rem; }
+    footer a { color: rgba(255,255,255,.7); text-decoration: none; margin: 0 12px; }
+  </style>
+</head>
+<body>
+<nav>
+  <a class="nav-logo" href="index.html">Claim<span>Back</span></a>
+  <a class="back" href="index.html">← Back to Home</a>
+</nav>
+
+<div class="legal-page">
+  <h1>Privacy Policy</h1>
+  <span class="updated">Last updated: May 30, 2026</span>
+
+  <div class="highlight-box">
+    <p><strong>Plain English summary:</strong> You upload sensitive insurance documents. We use them only to generate your analysis. We never sell your data. Documents are encrypted. You can request deletion anytime.</p>
+  </div>
+
+  <h2>1. What Data We Collect</h2>
+  <p>When you use ClaimBack, we collect:</p>
+  <ul>
+    <li><strong>Account information:</strong> Your email address (used for login via OTP)</li>
+    <li><strong>Documents you upload:</strong> Rejection letters, health insurance policy documents, hospital bills, discharge summaries, or other claim-related documents</li>
+    <li><strong>Claim details:</strong> Insurer name, claim amount, rejection reason, and other details you enter in the form</li>
+    <li><strong>Payment information:</strong> Payment is processed by Razorpay. We do not store your card or bank details — only a transaction reference</li>
+    <li><strong>Usage data:</strong> Basic app usage logs (screens visited, errors) for product improvement. No personally identifiable information in logs.</li>
+  </ul>
+
+  <h2>2. How We Use Your Data</h2>
+  <p>We use your data solely to:</p>
+  <ul>
+    <li>Generate your AI-powered claim analysis and appeal letter</li>
+    <li>Store your case history so you can access it later</li>
+    <li>Send you case status updates (if you opt in)</li>
+    <li>Process your payment and issue receipts</li>
+    <li>Improve our AI analysis quality (using anonymised, aggregated patterns only)</li>
+  </ul>
+  <p>We do <strong>not</strong> use your documents to train AI models directly. Your documents are processed by Anthropic's Claude API under Anthropic's data privacy commitments — API inputs are not used to train Anthropic's models per their API usage policy.</p>
+
+  <h2>3. Who We Share Data With</h2>
+  <p>We share data only with the following service providers, strictly for operating ClaimBack:</p>
+  <ul>
+    <li><strong>Anthropic (Claude API):</strong> Your documents are sent to Anthropic's API for AI analysis. Anthropic does not use API data for model training. See <a href="https://www.anthropic.com/privacy" style="color:var(--blue3)" target="_blank">Anthropic's Privacy Policy</a>.</li>
+    <li><strong>Supabase:</strong> Our database and file storage provider. Data is stored encrypted in AWS Mumbai (ap-south-1) region.</li>
+    <li><strong>Razorpay:</strong> Payment processing. Subject to Razorpay's privacy policy.</li>
+  </ul>
+  <p>We never sell your data. We never share it with insurance companies, TPAs, or any third party not listed above.</p>
+
+  <h2>4. Data Storage and Security</h2>
+  <ul>
+    <li>All data is stored in India (AWS ap-south-1, Mumbai)</li>
+    <li>Documents are encrypted at rest and in transit (TLS 1.2+)</li>
+    <li>Access is restricted — only you can view your own cases</li>
+    <li>We retain your documents for 12 months after your last case, then delete them automatically</li>
+  </ul>
+
+  <h2>5. Your Rights</h2>
+  <p>You have the right to:</p>
+  <ul>
+    <li><strong>Access:</strong> Request a copy of all data we hold about you</li>
+    <li><strong>Deletion:</strong> Request deletion of your account and all associated documents</li>
+    <li><strong>Correction:</strong> Request correction of any inaccurate data</li>
+    <li><strong>Portability:</strong> Request your case data in a machine-readable format</li>
+  </ul>
+  <p>To exercise any of these rights, email <a href="mailto:support@claimback.co.in" style="color:var(--blue3)">support@claimback.co.in</a>. We will respond within 7 business days.</p>
+
+  <h2>6. Cookies</h2>
+  <p>The ClaimBack mobile app does not use tracking cookies. Our website uses only essential session cookies required for login. No advertising or analytics cookies are used.</p>
+
+  <h2>7. Children's Privacy</h2>
+  <p>ClaimBack is not intended for use by persons under 18 years of age. We do not knowingly collect data from minors.</p>
+
+  <h2>8. Changes to This Policy</h2>
+  <p>We may update this Privacy Policy. We will notify you of significant changes via email or an in-app notice. Continued use of ClaimBack after changes constitutes acceptance.</p>
+
+  <h2>9. Contact</h2>
+  <p>For privacy questions or data requests: <a href="mailto:support@claimback.co.in" style="color:var(--blue3)">support@claimback.co.in</a></p>
+</div>
+
+<footer>
+  <a href="index.html">Home</a>
+  <a href="terms.html">Terms</a>
+  <a href="privacy.html">Privacy</a>
+  <br/><br/>
+  © 2026 ClaimBack. All rights reserved.
+</footer>
+</body>
+</html>

@@ -3,18 +3,17 @@ import { useUser } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/layout/AppShell';
-import { emailToUserId, getUserCases } from '@/lib/supabase';
+import { emailToUserId, getUserCases, deriveCaseStage, CaseStage } from '@/lib/supabase';
 import { getScoreColor } from '@/lib/theme';
 import { ChevronRight, Plus, Loader, FileText } from 'lucide-react';
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  draft:               { label: 'Draft',        color: 'bg-gray-100 text-gray-500' },
-  pending_payment:     { label: 'Pending payment', color: 'bg-amber-100 text-amber-700' },
-  pre_scan_confirmed:  { label: 'Pre-scan done', color: 'bg-blue-100 text-blue-700' },
-  pre_scan_bypassed:   { label: 'Pre-scan bypassed', color: 'bg-orange-100 text-orange-700' },
-  analysing:           { label: 'Analysing',    color: 'bg-purple-100 text-purple-700' },
-  completed:           { label: 'Completed',    color: 'bg-green-100 text-green-700' },
-  failed:              { label: 'Failed',        color: 'bg-red-100 text-red-700' },
+const STATUS_LABELS: Record<CaseStage, { label: string; color: string }> = {
+  draft:           { label: 'Draft',           color: 'bg-gray-100 text-gray-500' },
+  pending_payment: { label: 'Awaiting confirmation', color: 'bg-amber-100 text-amber-700' },
+  pre_scan:        { label: 'Document check',  color: 'bg-blue-100 text-blue-700' },
+  analysing:       { label: 'Analysing',       color: 'bg-purple-100 text-purple-700' },
+  completed:       { label: 'Completed',       color: 'bg-green-100 text-green-700' },
+  failed:          { label: 'Failed',          color: 'bg-red-100 text-red-700' },
 };
 
 export default function CasesPage() {
@@ -30,10 +29,11 @@ export default function CasesPage() {
   }, [user]);
 
   const handleCaseClick = (c: Record<string, unknown>) => {
-    if (c.status === 'completed') router.push(`/results?case=${c.id}`);
-    else if (c.status === 'analysing') router.push(`/analysing?case=${c.id}`);
-    else if (c.status === 'pending_payment') router.push(`/payment?case=${c.id}`);
-    else if (c.status === 'pre_scan_confirmed' || c.status === 'pre_scan_bypassed') router.push(`/analysing?case=${c.id}`);
+    const stage = deriveCaseStage(c);
+    if (stage === 'completed') router.push(`/results?case=${c.id}`);
+    else if (stage === 'analysing' || stage === 'failed') router.push(`/analysing?case=${c.id}`);
+    else if (stage === 'pre_scan') router.push(`/pre-scan?case=${c.id}`);
+    else router.push(`/payment?case=${c.id}`);
   };
 
   return (
@@ -71,10 +71,9 @@ export default function CasesPage() {
         {!loading && cases.length > 0 && (
           <div className="space-y-3">
             {cases.map(c => {
-              const status = c.status as string;
-              const st = STATUS_LABELS[status] || { label: status, color: 'bg-gray-100 text-gray-500' };
-              const analysisJson = c.analysis_json as Record<string, unknown> | null;
-              const score = analysisJson?.win_score as number | undefined;
+              const stage = deriveCaseStage(c);
+              const st = STATUS_LABELS[stage];
+              const score = (c.win_score as number | null) ?? undefined;
               const scoreColor = score != null ? getScoreColor(score) : undefined;
               return (
                 <button key={c.id as string} onClick={() => handleCaseClick(c)}
@@ -83,7 +82,7 @@ export default function CasesPage() {
                     <FileText size={20} className="text-[#06195e]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-800 text-sm truncate">{(c.insurer_name as string) || 'Unknown insurer'}</p>
+                    <p className="font-medium text-gray-800 text-sm truncate">{((c.insurer as string) !== 'Pending' && (c.insurer as string)) || 'Insurer pending'}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {c.claim_amount ? `₹${Number(c.claim_amount).toLocaleString('en-IN')} · ` : ''}
                       {new Date(c.created_at as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
