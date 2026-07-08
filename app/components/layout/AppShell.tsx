@@ -1,7 +1,8 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useClerk, useUser } from '@clerk/nextjs';
+import { useClerk } from '@clerk/nextjs';
+import { useAppUser, appSignOut } from '@/lib/appUser';
 import { Home, FileText, PlusCircle, Settings, LogOut, Users, BarChart3 } from 'lucide-react';
 
 interface NavItem { href: string; label: string; icon: React.ReactNode; }
@@ -29,7 +30,7 @@ export default function AppShell({
 }) {
   const pathname = usePathname();
   const { signOut } = useClerk();
-  const { user } = useUser();
+  const { user } = useAppUser();
   const nav = variant === 'partner' ? partnerNav : retailNav;
 
   const isActive = (href: string) => pathname.startsWith(href);
@@ -59,7 +60,7 @@ export default function AppShell({
           ))}
         </nav>
         <button
-          onClick={() => signOut({ redirectUrl: '/' })}
+          onClick={() => appSignOut(() => signOut())}
           className="flex items-center gap-2 text-white/70 hover:text-white text-sm transition-colors"
         >
           <LogOut size={16} />

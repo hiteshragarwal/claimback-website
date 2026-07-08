@@ -9,3 +9,5 @@ node_modules/
 
 # misc
 .DS_Store
+app/e2e-test.mjs
+app/clerk-probe.mjs

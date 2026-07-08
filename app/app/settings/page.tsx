@@ -1,7 +1,7 @@
 'use client';
-import { useUser, useClerk } from '@clerk/nextjs';
+import { useClerk } from '@clerk/nextjs';
+import { useAppUser as useUser, appSignOut } from '@/lib/appUser';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
 import { User, LogOut, Trash2, Shield, ChevronRight, Mail, AlertTriangle } from 'lucide-react';
@@ -9,13 +9,10 @@ import { User, LogOut, Trash2, Shield, ChevronRight, Mail, AlertTriangle } from 
 export default function SettingsPage() {
   const { user } = useUser();
   const { signOut } = useClerk();
-  const router = useRouter();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
 
-  const handleSignOut = () => {
-    signOut(() => router.push('/'));
-  };
+  const handleSignOut = () => appSignOut(() => signOut());
 
   const handleDeleteAccount = async () => {
     if (deleteInput.trim().toLowerCase() !== 'delete') {
@@ -30,7 +27,7 @@ export default function SettingsPage() {
         body: JSON.stringify({ email: user?.primaryEmailAddress?.emailAddress }),
       });
       toast.success('Deletion request submitted. We will process within 30 days as per DPDP Act.');
-      signOut(() => router.push('/'));
+      await appSignOut(() => signOut());
     } catch {
       toast.error('Request failed. Email support@claimback.co.in directly.');
     }
@@ -50,8 +47,7 @@ export default function SettingsPage() {
             </div>
             <div className="min-w-0">
               <p className="font-medium text-gray-800">
-                {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` :
-                 user?.firstName || user?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'User'}
+                {user?.firstName || user?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'User'}
               </p>
               <p className="text-sm text-gray-400 flex items-center gap-1.5 mt-0.5">
                 <Mail size={13} />

@@ -1,5 +1,5 @@
 'use client';
-import { useUser } from '@clerk/nextjs';
+import { useAppUser as useUser } from '@/lib/appUser';
 import { useCallback, useRef, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDropzone } from 'react-dropzone';

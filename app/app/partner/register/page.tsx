@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
+import { useAppUser as useUser } from '@/lib/appUser';
 import toast from 'react-hot-toast';
 import { ChevronRight, Loader, Users, TrendingUp, DollarSign } from 'lucide-react';
 

@@ -2,9 +2,10 @@
 import { useRef, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useSignUp, useSignIn, useAuth } from '@clerk/nextjs';
+import { useSignUp, useSignIn } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { emailToUserId, syncUserRecord } from '@/lib/supabase';
+import { setAppSession, readAppSession } from '@/lib/appUser';
 import { Loader } from 'lucide-react';
 
 type ClerkError = { errors?: { code?: string; message?: string; longMessage?: string }[] };
@@ -19,15 +20,17 @@ export default function EmailOtpForm({ mode }: { mode: 'sign-up' | 'sign-in' }) 
   const router = useRouter();
   const params = useSearchParams();
   const refCode = params.get('ref') || '';
+  // Only same-origin app paths — never an attacker-supplied absolute URL
+  const rawRedirect = params.get('redirect') || '';
+  const redirectTo = /^\/[a-zA-Z0-9/_-]*$/.test(rawRedirect) ? rawRedirect : '';
 
   const { signUp, setActive: setActiveSignUp, isLoaded: signUpLoaded } = useSignUp();
   const { signIn, setActive: setActiveSignIn, isLoaded: signInLoaded } = useSignIn();
-  const { isSignedIn } = useAuth();
 
-  // Already signed in — go straight to the app (mirrors the mobile app)
+  // Already signed in — go straight to the app
   useEffect(() => {
-    if (isSignedIn) router.replace('/home');
-  }, [isSignedIn, router]);
+    if (readAppSession()) router.replace(redirectTo || '/home');
+  }, [router, redirectTo]);
 
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [flow, setFlow] = useState<'sign-up' | 'sign-in'>(mode);
@@ -96,22 +99,40 @@ export default function EmailOtpForm({ mode }: { mode: 'sign-up' | 'sign-in' }) 
     setLoading(true);
     try {
       const em = email.trim();
-      let sessionId: string | null | undefined;
 
+      // Verifying the OTP is the auth gate (throws on a wrong code) — exactly
+      // like the mobile app.
+      let sessionId: string | null = null;
       if (flow === 'sign-up') {
         const result = await signUp!.attemptEmailAddressVerification({ code: c });
         sessionId = result.createdSessionId;
-        if (sessionId) await setActiveSignUp!({ session: sessionId });
       } else {
         const result = await signIn!.attemptFirstFactor({ strategy: 'email_code', code: c });
         sessionId = result.createdSessionId;
-        if (sessionId) await setActiveSignIn!({ session: sessionId });
       }
+
+      // Activating a Clerk session is best-effort: the instance may refuse to
+      // mint one (e.g. status 'missing_requirements' when the dashboard marks
+      // phone as required). Login must not depend on it.
+      try {
+        if (sessionId) {
+          if (flow === 'sign-up') await setActiveSignUp!({ session: sessionId });
+          else await setActiveSignIn!({ session: sessionId });
+        }
+      } catch (e) {
+        console.warn('[auth] session activation non-fatal:', e);
+      }
+
+      // Our own session — identity is the deterministic email→UUID (same as iOS)
+      setAppSession(em);
 
       // Ensure the Supabase user row exists (non-fatal — never blocks login)
       await syncUserRecord(emailToUserId(em), em);
 
-      router.push(refCode ? `/upload?ref=${encodeURIComponent(refCode)}` : '/home');
+      // Full navigation, not client-side push: middleware must see the new cookie
+      window.location.assign(
+        refCode ? `/upload?ref=${encodeURIComponent(refCode)}` : (redirectTo || '/home')
+      );
     } catch (e: unknown) {
       toast.error(errMsg(e) || 'Invalid code. Try again.');
       setOtp(['', '', '', '', '', '']);

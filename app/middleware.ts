@@ -1,20 +1,26 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { clerkMiddleware } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/r/(.*)',           // referral redirect links — public
-  '/partner/register', // partner self-registration — public
-  '/api/webhooks/(.*)',// Razorpay webhooks — public (verified by signature)
-  '/privacy',
-  '/terms',
-]);
+// App routes that require a signed-in user. The gate is our own `cb_user`
+// cookie, set only after Clerk verifies the emailed OTP — the same trust model
+// as the mobile app (a verified OTP is auth; identity is the email→UUID).
+// We deliberately do NOT call auth.protect(): the Clerk instance may refuse to
+// mint a session (status 'missing_requirements' when phone is a required
+// field), which would bounce verified users to Clerk's hosted sign-in page.
+const PROTECTED = [
+  '/home', '/cases', '/upload', '/payment', '/pre-scan',
+  '/analysing', '/results', '/settings', '/partner/dashboard',
+];
 
-export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
-    await auth.protect();
+export default clerkMiddleware(async (_auth, req) => {
+  const { pathname } = req.nextUrl;
+  const needsAuth = PROTECTED.some(p => pathname === p || pathname.startsWith(p + '/'));
+  if (needsAuth && !req.cookies.get('cb_user')) {
+    const signIn = new URL('/sign-in', req.url);
+    signIn.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(signIn);
   }
+  return NextResponse.next();
 });
 
 export const config = {
