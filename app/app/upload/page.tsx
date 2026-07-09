@@ -37,8 +37,8 @@ function UploadPageInner() {
 
   const ensureCase = async () => {
     if (caseIdRef.current) return caseIdRef.current;
-    const uid = emailToUserId(user!.primaryEmailAddress!.emailAddress);
-    const id = await createCase(uid, partnerCode || undefined);
+    const email = user!.primaryEmailAddress!.emailAddress;
+    const id = await createCase(emailToUserId(email), email, partnerCode || undefined);
     caseIdRef.current = id;
     return id;
   };

@@ -16,12 +16,16 @@ export const supabaseAdmin = () =>
   );
 
 // ── IDENTITY ─────────────────────────────────────────────────────────────────
-// Same deterministic UUID-v5 logic as the mobile app.
-// Keeps user identity consistent across web and app.
+// MUST byte-match the mobile app (claimback2/src/utils/identity.ts): same
+// uuid@7 package and same CLAIMBACK_NAMESPACE, so an email maps to the SAME
+// users.id on web and iOS. A different namespace (or uuid@11, which rejects
+// this non-RFC namespace) makes the web mint a second identity for existing
+// app users — their upsert then hits UNIQUE(email) and case inserts fail on
+// the users FK. Do not "upgrade" either without migrating users.id.
 import { v5 as uuidv5 } from 'uuid';
-const NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+const CLAIMBACK_NAMESPACE = '6f9619ff-8b86-d011-b42d-00c04fc964ff';
 export function emailToUserId(email: string): string {
-  return uuidv5(email.toLowerCase().trim(), NAMESPACE);
+  return uuidv5(email.trim().toLowerCase(), CLAIMBACK_NAMESPACE);
 }
 
 // Idempotent users upsert (mirrors iOS syncUserRecord). Never throws —
@@ -31,11 +35,11 @@ export async function syncUserRecord(uid: string, email: string): Promise<boolea
   try {
     const { error } = await supabase()
       .from('users')
-      .upsert({ id: uid, email }, { onConflict: 'id' });
-    if (error) { console.warn('[users.upsert] non-fatal:', error.message); return false; }
+      .upsert({ id: uid, email: email.trim().toLowerCase() }, { onConflict: 'id' });
+    if (error) { console.error('[users.upsert] failed:', error.message); return false; }
     return true;
   } catch (e) {
-    console.warn('[users.upsert] non-fatal:', e);
+    console.error('[users.upsert] failed:', e);
     return false;
   }
 }
@@ -64,7 +68,13 @@ export function deriveCaseStage(c: Record<string, unknown>): CaseStage {
 }
 
 // ── CASES ────────────────────────────────────────────────────────────────────
-export async function createCase(userId: string, partnerCode?: string) {
+export async function createCase(userId: string, email: string, partnerCode?: string) {
+  // cases.user_id has an FK to users.id — guarantee the row exists first so a
+  // failed background sync at login can never surface here as a raw FK error.
+  const synced = await syncUserRecord(userId, email);
+  if (!synced) {
+    throw new Error('Could not initialise your account. Please sign out, sign back in, and try again.');
+  }
   // Insurer defaults to 'Pending' — the analysis extracts it from documents
   // (same as the mobile app). The upload form may overwrite it via updateCase.
   const { data, error } = await supabase().from('cases').insert({

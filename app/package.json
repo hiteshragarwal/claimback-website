@@ -21,7 +21,7 @@
     "react-dom": "^19.1.0",
     "react-dropzone": "^14.3.8",
     "react-hot-toast": "^2.5.2",
-    "uuid": "^11.1.0"
+    "uuid": "^7.0.3"
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.15.12",
